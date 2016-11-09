@@ -1,6 +1,9 @@
 package org.wartremover
 package warts
 
+import scala.meta._
+import scala.meta.transversers._
+
 object StringPlusAny extends WartTraverser {
   def apply(u: WartUniverse): u.Traverser = {
     import u.universe._
@@ -49,5 +52,27 @@ object StringPlusAny extends WartTraverser {
         }
       }
     }
+  }
+}
+
+object StringPlusAny_ extends WartTraverser_ {
+
+  val Plus = Term.Name("+")
+  val PredefName = Term.Name("Predef")
+  val Any2StringAddName = Term.Name("any2stringadd")
+
+  val matcher: PartialFunction[Tree, TraverseResult] = {
+    case Term.Apply(Term.Select(Term.Apply(Term.Select(Term.Select(_, PredefName), Any2StringAddName), _), Plus), _) =>
+      error("Implicit conversion to string is disabled")
+    case Term.Apply(Term.Select(Type.Apply(Term.Select(Term.Select(_, PredefName), Any2StringAddName), _), Plus), _) =>
+      error("Implicit conversion to string is disabled")
+    case Term.ApplyInfix(lhs, foo, _, Seq(rhs)) =>
+      println("LHS " + lhs.show[Structure])
+      println("RHS " + rhs.show[Structure])
+      println("foo " + foo.show[Structure])
+      continue // TODO
+    case o =>
+      println("OTHER " + o.show[Structure])
+      continue
   }
 }

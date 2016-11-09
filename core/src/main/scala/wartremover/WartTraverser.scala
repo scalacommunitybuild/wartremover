@@ -5,6 +5,8 @@ import reflect.api.Universe
 import reflect.macros.Context
 import scala.util.matching.Regex
 
+import scala.meta.inputs.Position
+
 trait WartTraverser {
   def apply(u: WartUniverse): u.Traverser
 
@@ -129,6 +131,75 @@ trait WartTraverser {
   def warning(u: WartUniverse)(pos: u.universe.Position, message: String): Unit = u.warning(pos, message, wartName)
 }
 
+trait WartTraverser_ {
+  import scala.meta._
+  import scala.meta.transversers._
+  import scala.meta.prettyprinters.Options._
+
+  lazy val className = this.getClass.getName.stripSuffix("$")
+
+  final def run(tree: Tree): List[WartResult] =
+    traverse(tree)(wartAnnotationMatcher orElse matcher)
+
+  val matcher: PartialFunction[Tree, TraverseResult]
+
+  protected sealed abstract class TraverseResult
+  protected final case class TError(msg: String) extends TraverseResult
+  protected final case class TWarning(msg: String) extends TraverseResult
+  protected case object TSkip extends TraverseResult
+  protected case object TContinue extends TraverseResult
+
+  protected def err(msg: String): TraverseResult = TError(msg)
+  protected def warn(msg: String): TraverseResult = TWarning(msg)
+  protected def skip: TraverseResult = TSkip
+  protected def continue: TraverseResult = TContinue
+
+  private def traverse(tree: Tree)(fn: PartialFunction[Tree, TraverseResult]): List[WartResult] = {
+    val buf = scala.collection.mutable.ListBuffer[WartResult]()
+    object traverser extends Traverser {
+      override def apply(tree: Tree): Unit =
+        if (fn.isDefinedAt(tree))
+          fn(tree) match {
+            case TSkip => ()
+            case TContinue => super.apply(tree)
+            case TError(msg) =>
+              buf += WartError(msg, tree.pos)
+              super.apply(tree)
+            case TWarning(msg) =>
+              buf += WartWarning(msg, tree.pos)
+              super.apply(tree)
+          }
+        else
+          ()
+    }
+    traverser(tree)
+    buf.toList
+  }
+
+  private def isWartAnnotation(a : Mod) : Boolean = a match {
+    case Mod.Annot(Term.Apply(
+      Ctor.Ref.Name("SuppressWarnings"),
+      Seq(Term.Apply(Term.Name("Array"), args)))) =>
+
+      args.exists {
+        case Lit(name) => name == className
+        case _ => false
+      }
+    case _ => false
+  }
+
+  private val wartAnnotationMatcher: PartialFunction[Tree, TraverseResult] = {
+    case Defn.Val(mods, _, _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Var(mods, _, _,  _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Def(mods, _, _, _, _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Macro(mods, _,  _,  _, _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Type(mods, _, _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Class(mods, _,  _, _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Trait(mods, _, _,  _, _) if mods.exists(isWartAnnotation) => skip
+    case Defn.Object(mods, _, _) if mods.exists(isWartAnnotation) => skip
+  }
+}
+
 object WartTraverser {
   def sumList(u: WartUniverse)(l: List[WartTraverser]): u.Traverser =
     l.reduceRight(_ compose _)(u)
@@ -145,3 +216,13 @@ trait WartUniverse {
   def warning(pos: universe.Position, message: String, wartName: String): Unit =
     warning(pos, s"[wartremover:$wartName] $message")
 }
+
+
+trait WartUniverse_ {
+  def error(pos: Position, message: String): Unit
+  def warning(pos: Position, message: String): Unit
+}
+
+sealed abstract class WartResult
+final case class WartError(msg: String, pos: Position) extends WartResult
+final case class WartWarning(msg: String, pos: Position) extends WartResult

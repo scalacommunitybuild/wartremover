@@ -29,6 +29,12 @@ object WartTestTraverser {
     c.Expr(q"WartTestTraverser.Result(List(..${errors.toList}), List(..${warnings.toList}))")
   }
 
+  def scalameta(t: WartTraverser_)(source: String): Result = {
+    import scala.meta._
+    val results = t.run(("package object $foo$ {" + source + "}").parse[Source].get)
+    Result(Nil, Nil)
+  }
+
   /**
    * Example: {{{
    * val result = WartTestTraverser.applyToFiles(Return)(

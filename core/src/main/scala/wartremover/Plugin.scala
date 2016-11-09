@@ -2,6 +2,9 @@ package org.wartremover
 
 import tools.nsc.plugins.PluginComponent
 import tools.nsc.{Global, Phase}
+import scala.meta._
+import scala.meta.dialects.Scala211
+import scala.meta.prettyprinters.Options._
 
 import java.net.{URL, URLClassLoader}
 
@@ -69,6 +72,7 @@ class Plugin(val global: Global) extends tools.nsc.plugins.Plugin {
               else global.reporter.error(pos, message)
             def warning(pos: Position, message: String) = global.reporter.warning(pos, message)
           }
+          println(unit.source.content.parse[Source].get.show[Structure])
 
           def go(ts: List[WartTraverser], onlyWarn: Boolean) =
             ts.foreach(_(wartUniverse(onlyWarn)).traverse(unit.body))

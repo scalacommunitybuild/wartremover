@@ -4,6 +4,7 @@ package test
 import org.scalatest.FunSuite
 
 import org.wartremover.warts.StringPlusAny
+import org.wartremover.warts.StringPlusAny_
 
 class StringPlusAnyTest extends FunSuite with ResultAssertions {
   test("Implicit conversion to string is disabled") {
@@ -94,6 +95,23 @@ class StringPlusAnyTest extends FunSuite with ResultAssertions {
 		"" + ("" padTo (1, ' '))
 	}
 	assertEmpty(result)
+  }
+
+  test("Implicit conversion to string is disabled 3") {
+    val result = WartTestTraverser.scalameta(StringPlusAny_)("""
+      {} + "lol"
+    """)
+    assertResult(List.empty, "result.errors")(result.errors)
+    assertResult(List.empty, "result.warnings")(result.warnings)
+  }
+
+  test("StringPlusAny wart obeys SuppressWarnings 4") {
+    val result = WartTestTraverser.scalameta(StringPlusAny_)("""
+      @SuppressWarnings(Array("org.wartremover.warts.StringPlusAny"))
+      val foo = {} + "lol"
+    """)
+    assertResult(List.empty, "result.errors")(result.errors)
+    assertResult(List.empty, "result.warnings")(result.warnings)
   }
 }
 
