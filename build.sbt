@@ -85,7 +85,7 @@ lazy val core = Project(
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    "org.scalameta" %% "scalameta" % "1.2.0"
+    "org.scalameta" %% "scalameta" % "2.0.0-RC3"
   ),
   // a hack (?) to make `compile` and `+compile` tasks etc. behave sanely
   aggregate := CrossVersion.partialVersion((scalaVersion in Global).value) == Some((2, 10)),
