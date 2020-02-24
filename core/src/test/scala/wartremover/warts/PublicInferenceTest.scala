@@ -3,6 +3,7 @@ package test
 
 import org.scalatest.FunSuite
 import org.wartremover.warts.PublicInference
+import wartremover.test.PublicInferenceTestMacros
 
 class PublicInferenceTest extends FunSuite with ResultAssertions {
   test("Non-public fields and methods are allowed") {
@@ -116,6 +117,13 @@ class PublicInferenceTest extends FunSuite with ResultAssertions {
       }
     }
     assertErrors(result)("Public member must have an explicit type ascription", 5)
+  }
+
+  test("Macro expansions are ignored") {
+    val result = WartTestTraverser(PublicInference) {
+      val a = PublicInferenceTestMacros.define
+    }
+    assertEmpty(result)
   }
 
   test("Members of non-public classes are ignored") {
